@@ -23,7 +23,7 @@ public:
 	virtual ~STIMouseSim();
 protected:
 	void createScene();
-
+	void createFrameListener(void);
 	bool frameRenderingQueued(const Ogre::FrameEvent& evt);
 
 	// OIS::KeyListener
@@ -37,6 +37,7 @@ private:
 	Mouse* mMouse;
 	Maze* mMaze;
 	bool mMouseStart;
+	OgreBites::ParamsPanel* mMouseStatePanel;
 };
 
 

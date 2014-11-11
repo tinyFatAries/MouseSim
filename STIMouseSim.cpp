@@ -7,7 +7,7 @@
 #include "STIMouseSim.h"
 
 STIMouseSim::STIMouseSim():
-mMouse(0), mMaze(0),mMouseStart(false)
+mMouse(0), mMaze(0),mMouseStart(false),mMouseStatePanel(0)
 {
 
 }
@@ -36,10 +36,24 @@ void STIMouseSim::createScene()
 	mMouse = new Mouse(mSceneMgr);
 }
 
+void STIMouseSim::createFrameListener(void)
+{
+	BaseApplication::createFrameListener();
+	Ogre::StringVector items;
+	items.push_back("mouse.X");
+	items.push_back("mouse.Y");
+	items.push_back("mouse.speed");
+	mMouseStatePanel = mTrayMgr->createParamsPanel(TL_BOTTOMRIGHT, "MouseState", 200, items);
+}
+
 bool STIMouseSim::frameRenderingQueued(const Ogre::FrameEvent& evt)
 {
 	if(mMouseStart)
 		mMouse->frameRenderingQueued(evt);
+
+	mMouseStatePanel->setParamValue(0, Ogre::StringConverter::toString(mMouse->mMouseNode->_getDerivedPosition().z + 135));
+	mMouseStatePanel->setParamValue(1, Ogre::StringConverter::toString(mMouse->mMouseNode->_getDerivedPosition().x + 135));
+
 	return BaseApplication::frameRenderingQueued(evt);
 }
 
