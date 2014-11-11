@@ -231,5 +231,31 @@ void Mouse::turn(const FrameEvent& evt, bool turnLeft)
 
 void Mouse::turnAround(const FrameEvent& evt)
 {
+	const static float turnMaxSpeed = 600.0f;
+	const static float turnAcc = 2000.0f;
+	static float turnSpeed = 0;
+	static int turnStage = 0;
+
+
+	if (turnStage == 0 && turnSpeed < turnMaxSpeed )
+	{
+		turnSpeed += evt.timeSinceLastFrame * turnAcc;
+		mMouseNode->rotate(Vector3::UNIT_Y, Degree(turnSpeed), Node::TS_WORLD);
+	}
+	else
+	{
+		turnStage = 1;
+	}
+
+	if (turnStage == 1 && turnSpeed > 0)
+	{
+		turnSpeed -= evt.timeSinceLastFrame * turnAcc;
+		mMouseNode->rotate(Vector3::UNIT_Y, Degree(turnSpeed), Node::TS_WORLD);
+	}
+	else
+	{
+		turnStage = 0;
+		mMotionOver = true;
+	}
 
 }
