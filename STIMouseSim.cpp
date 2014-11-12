@@ -7,7 +7,7 @@
 #include "STIMouseSim.h"
 
 STIMouseSim::STIMouseSim():
-mMouse(0), mMaze(0),mMouseStart(false),mMouseStatePanel(0)
+mMicroMouse(0), mMaze(0),mMouseStart(false),mMouseStatePanel(0)
 {
 
 }
@@ -33,7 +33,7 @@ void STIMouseSim::createScene()
 	mMaze->printMaze();
 #endif
 	/*setup a mouse*/
-	mMouse = new Mouse(mSceneMgr);
+	mMicroMouse = new Mouse(mSceneMgr, mCamera);
 }
 
 void STIMouseSim::createFrameListener(void)
@@ -42,17 +42,22 @@ void STIMouseSim::createFrameListener(void)
 	Ogre::StringVector items;
 	items.push_back("mouse.X");
 	items.push_back("mouse.Y");
-	items.push_back("mouse.speed");
+	items.push_back("foward");
+	items.push_back("left");
+	items.push_back("right");
 	mMouseStatePanel = mTrayMgr->createParamsPanel(TL_BOTTOMRIGHT, "MouseState", 200, items);
 }
 
 bool STIMouseSim::frameRenderingQueued(const Ogre::FrameEvent& evt)
 {
 	if(mMouseStart)
-		mMouse->frameRenderingQueued(evt);
+		mMicroMouse->frameRenderingQueued(evt);
 
-	mMouseStatePanel->setParamValue(0, Ogre::StringConverter::toString(mMouse->mMouseNode->_getDerivedPosition().z + 135));
-	mMouseStatePanel->setParamValue(1, Ogre::StringConverter::toString(mMouse->mMouseNode->_getDerivedPosition().x + 135));
+	mMouseStatePanel->setParamValue(0, Ogre::StringConverter::toString(mMicroMouse->mMouseNode->_getDerivedPosition().z + 144));
+	mMouseStatePanel->setParamValue(1, Ogre::StringConverter::toString(mMicroMouse->mMouseNode->_getDerivedPosition().x + 144));
+	mMouseStatePanel->setParamValue(2, Ogre::StringConverter::toString(mMicroMouse->mFowardDistance));
+	mMouseStatePanel->setParamValue(3, Ogre::StringConverter::toString(mMicroMouse->mLeftDistance));
+	mMouseStatePanel->setParamValue(4, Ogre::StringConverter::toString(mMicroMouse->mRightDistance));
 
 	return BaseApplication::frameRenderingQueued(evt);
 }
@@ -66,6 +71,7 @@ bool STIMouseSim::keyPressed( const OIS::KeyEvent &arg )
 	}
 	else if(arg.key == OIS::KC_Q)
 	{
+		mMicroMouse->mMotions.push(Mouse::Foward);
 	}
 	else if(arg.key == OIS::KC_E)
 	{

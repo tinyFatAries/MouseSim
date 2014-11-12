@@ -34,7 +34,7 @@ protected:
 	bool mousePressed( const OIS::MouseEvent &arg, OIS::MouseButtonID id );
 	bool mouseReleased( const OIS::MouseEvent &arg, OIS::MouseButtonID id );
 private:
-	Mouse* mMouse;
+	Mouse* mMicroMouse;
 	Maze* mMaze;
 	bool mMouseStart;
 	OgreBites::ParamsPanel* mMouseStatePanel;

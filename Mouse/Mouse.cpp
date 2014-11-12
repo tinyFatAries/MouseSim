@@ -6,30 +6,36 @@
  */
 #include "Mouse.h"
 
-Mouse::Mouse(SceneManager* sceneManager, int x, int y) :
-mSceneManager(sceneManager),
+Mouse::Mouse(SceneManager* sceneManager, Camera* camera,int x, int y) :
+mSceneManager(sceneManager),mCamera(camera),
 mMouse(0), mMouseNode(0),
 mCurDirect(North), mDirect(Vector3::UNIT_X),mMotionOver(true),
-mWallLength(18.0f), mVelocity(0.0f), mAcc(2.0f), mMaxSpeed(0.6f),
-mDirection(Vector3::UNIT_Z), remainAngle(90)
+mWallLength(18.0f), mVelocity(0.06f), mAcc(2.0f), mMaxSpeed(0.6f),
+mDirection(Vector3::UNIT_Z), remainAngle(90),
+mFowardDistance(0), mLeftDistance(0), mRightDistance(0)
 {
 	createMouse(x, y);
 //	mMotions.push(Start);
-	for(int i = 0; i < 81; i++)
-	mMotions.push(TurnRight);
-//	mMotions.push(Foward);
-//	mMotions.push(Foward);
+//	for(int i = 0; i < 14; i++)
+//		mMotions.push(Foward);
+//	mMotions.push(TurnRight);
+//	for(int i = 0; i < 14; i++)
+//		mMotions.push(Foward);
+//	mMotions.push(TurnRight);
+//	for(int i = 0; i < 14; i++)
+//		mMotions.push(Foward);
+//	mMotions.push(TurnRight);
+//	for(int i = 0; i < 14; i++)
+//		mMotions.push(Foward);
 //	mMotions.push(Stop);
 //	mMotions.push(TurnAround);
-//	mMotions.push(TurnAround);
-//	mMotions.push(TurnAround);
-//	mMotions.push(TurnAround);
-	cout << "length of motions" << mMotions.size() << endl;
 }
 
 Mouse::~Mouse()
 {
-
+	mSceneManager->destroyQuery(mFowardRayQuery);
+	mSceneManager->destroyQuery(mLeftRayQuery);
+	mSceneManager->destroyQuery(mRightRayQuery);
 }
 
 void Mouse::createMouse(int x, int y)
@@ -65,10 +71,101 @@ void Mouse::createMouse(int x, int y)
 	SceneNode* thrustersNode = mMouseNode->createChildSceneNode(Vector3(0, 10, -70));
 	thrustersNode->attachObject(thrusters);
 
+	// initial ray to simulation infrared
+	mFowardRayQuery = mSceneManager->createRayQuery(mFowardRay);
+	mFowardRayQuery->setSortByDistance(true);
+	mLeftRayQuery = mSceneManager->createRayQuery(mLeftRay);
+	mLeftRayQuery->setSortByDistance(true);
+	mRightRayQuery = mSceneManager->createRayQuery(mRightRay);
+	mRightRayQuery->setSortByDistance(true);
 }
 
 void Mouse::frameRenderingQueued(const FrameEvent& evt)
 {
+	/*detect the wall*/
+	switch(mCurDirect)
+	{
+	case North:
+		mFowardRay.setOrigin(mMouseNode->_getDerivedPosition() + Vector3(5, 0, 0));
+		mLeftRay.setOrigin(mMouseNode->_getDerivedPosition() + Vector3(5, 0, 0));
+		mRightRay.setOrigin(mMouseNode->_getDerivedPosition() + Vector3(5, 0, 0));
+		mFowardRay.setDirection(Vector3::UNIT_X);
+		mLeftRay.setDirection(Vector3::NEGATIVE_UNIT_Z);
+		mRightRay.setDirection(Vector3::UNIT_Z);
+		break;
+	case East:
+		mFowardRay.setOrigin(mMouseNode->_getDerivedPosition() + Vector3(0, 0, 5));
+		mLeftRay.setOrigin(mMouseNode->_getDerivedPosition() + Vector3(0, 0, 5));
+		mRightRay.setOrigin(mMouseNode->_getDerivedPosition() + Vector3(0, 0, 5));
+		mFowardRay.setDirection(Vector3::UNIT_Z);
+		mLeftRay.setDirection(Vector3::UNIT_X);
+		mRightRay.setDirection(Vector3::NEGATIVE_UNIT_X);
+		break;
+	case South:
+		mFowardRay.setOrigin(mMouseNode->_getDerivedPosition() + Vector3(-5, 0, 0));
+		mLeftRay.setOrigin(mMouseNode->_getDerivedPosition() + Vector3(-5, 0, 0));
+		mRightRay.setOrigin(mMouseNode->_getDerivedPosition() + Vector3(-5, 0, 0));
+		mFowardRay.setDirection(Vector3::NEGATIVE_UNIT_X);
+		mLeftRay.setDirection(Vector3::UNIT_Z);
+		mRightRay.setDirection(Vector3::NEGATIVE_UNIT_Z);
+		break;
+	case West:
+		mFowardRay.setOrigin(mMouseNode->_getDerivedPosition() + Vector3(0, 0, -5));
+		mLeftRay.setOrigin(mMouseNode->_getDerivedPosition() + Vector3(0, 0, -5));
+		mRightRay.setOrigin(mMouseNode->_getDerivedPosition() + Vector3(0, 0, -5));
+		mFowardRay.setDirection(Vector3::NEGATIVE_UNIT_Z);
+		mLeftRay.setDirection(Vector3::NEGATIVE_UNIT_X);
+		mRightRay.setDirection(Vector3::UNIT_X);
+		break;
+	}
+	mFowardRayQuery->setRay(mFowardRay);
+	Ogre::RaySceneQueryResult &fowardQuery = mFowardRayQuery->execute();
+	Ogre::RaySceneQueryResult::iterator itr = fowardQuery.begin();
+	for (; itr != fowardQuery.end(); itr++)
+	{
+		if(itr->movable && itr->movable->getName() != ""
+						&& itr->movable->getName() != "mouse"
+						&& itr->movable->getName() != mCamera->getName())
+		{
+			//cout << "detected walls" << endl;
+			Vector3 vec = itr->movable->getParentSceneNode()->_getDerivedPosition() - mMouseNode->_getDerivedPosition();
+			mFowardDistance = vec.normalise();
+			break;
+		}
+	}
+	mLeftRayQuery->setRay(mLeftRay);
+	Ogre::RaySceneQueryResult &leftQuery = mLeftRayQuery->execute();
+	Ogre::RaySceneQueryResult::iterator itr1 = leftQuery.begin();
+	for (; itr1 != leftQuery.end(); itr1++)
+	{
+		if(itr1->movable && itr1->movable->getName() != ""
+						&& itr1->movable->getName() != "mouse"
+						&& itr1->movable->getName() != mCamera->getName())
+		{
+			//cout << "detected walls" << endl;
+			Vector3 vec = itr1->movable->getParentSceneNode()->_getDerivedPosition() - mMouseNode->_getDerivedPosition();
+			mLeftDistance = vec.normalise();
+			break;
+		}
+	}
+	mRightRayQuery->setRay(mRightRay);
+	Ogre::RaySceneQueryResult &rightQuery = mRightRayQuery->execute();
+	Ogre::RaySceneQueryResult::iterator itr3 = rightQuery.begin();
+	for (; itr3 != rightQuery.end(); itr3++)
+	{
+		if(itr3->movable && itr3->movable->getName() != ""
+						&& itr3->movable->getName() != "mouse"
+						&& itr3->movable->getName() != mCamera->getName())
+		{
+			//cout << "detected walls" << endl;
+			Vector3 vec = itr3->movable->getParentSceneNode()->_getDerivedPosition() - mMouseNode->_getDerivedPosition();
+			mRightDistance = vec.normalise();
+			break;
+		}
+	}
+
+
+	/*action motion*/
 	if(mMotionOver == true && mMotions.empty() == false) //mouse is idle
 	{
 		mCurMotion = mMotions.front();
@@ -111,6 +208,7 @@ void Mouse::start(const FrameEvent& evt, bool start)
 	if(start)
 	{
 			mVelocity += mAcc * evt.timeSinceLastFrame;
+			if(mVelocity > mMaxSpeed) mVelocity = mMaxSpeed;
 	}
 	else
 	{
@@ -119,9 +217,17 @@ void Mouse::start(const FrameEvent& evt, bool start)
 	 }
 
 	float deltaX = mVelocity * evt.timeSinceLastFrame * 100;
-	cout << "distance:" << distant << "deltax" << deltaX << endl;
 	if (distant > deltaX)
+	{
+		if(deltaX == 0)
+		{
+			deltaX = distant;
+			mMotionOver = true;
+			distant = 9;
+			cout << "mouse stopped..." << endl;
+		}
 		distant -= deltaX;
+	}
 	else
 	{
 		deltaX = distant;
@@ -129,7 +235,7 @@ void Mouse::start(const FrameEvent& evt, bool start)
 		else mVelocity = 0;
 		mMotionOver = true;
 		distant = 9;
-		cout << "motion over.................................." << endl;
+		cout << "mouse started..." << endl;
 	}
 	mMouseNode->translate( mDirect * deltaX, Node::TS_WORLD);
 }
@@ -172,25 +278,21 @@ void Mouse::turn(const FrameEvent& evt, bool turnLeft)
 		deltaX = radius * (Math::Cos(Degree(W1)) - Math::Cos(Degree(W2))) ;
 		if(turnLeft) deltaX *= -1;
 		deltaY = radius * (Math::Sin(Degree(W2)) - Math::Sin(Degree(W1)));
-		cout << "north" << endl;
 		break;
 	case East:
 		deltaX = radius * (Math::Sin(Degree(W2)) - Math::Sin(Degree(W1)));
 		deltaY = -radius * (Math::Cos(Degree(W1)) - Math::Cos(Degree(W2)));
 		if(turnLeft) deltaY *= -1;
-		cout << "east" << endl;
 		break;
 	case South:
 		deltaX = -radius * (Math::Cos(Degree(W1)) - Math::Cos(Degree(W2)));
 		if(turnLeft) deltaX *= -1;
 		deltaY = -radius * (Math::Sin(Degree(W2)) - Math::Sin(Degree(W1)));
-		cout << "south" << endl;
 		break;
 	case West:
 		deltaX = -radius * (Math::Sin(Degree(W2)) - Math::Sin(Degree(W1)));
 		deltaY = radius * (Math::Cos(Degree(W1)) - Math::Cos(Degree(W2)));
 		if(turnLeft) deltaY *= -1;
-		cout << "west" << endl;
 		break;
 	}
 	W1 = W2; // save last W

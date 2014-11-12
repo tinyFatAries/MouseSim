@@ -15,7 +15,7 @@ using namespace std;
 class Mouse
 {
 public:
-	Mouse(SceneManager* sceneManager, int x = 0, int y = 0);
+	Mouse(SceneManager* sceneManager, Camera *camera, int x = 0, int y = 0);
 	~Mouse();
 
 	void start(const FrameEvent& evt, bool start = true);
@@ -29,6 +29,7 @@ public:
 	void createMouse(int x, int y);
 
 	SceneManager* mSceneManager;
+	Camera* mCamera;
 	Entity* mMouse;
 	SceneNode* mMouseNode;
 	CurrenDiretion mCurDirect;
@@ -41,13 +42,19 @@ public:
 	bool mMotionOver;
 
 private:
-	//just for test to move
+	//motion parameters
 	Real mWallLength;
 	Real mVelocity;
 	Real mAcc;
 	Real mMaxSpeed;
 	Vector3 mDirection;
 	Real remainAngle;
+public:
+	//wall detect variables
+	Real mFowardDistance, mLeftDistance, mRightDistance;
+	RaySceneQuery *mFowardRayQuery, *mLeftRayQuery, *mRightRayQuery;
+	Ray mFowardRay, mLeftRay, mRightRay;
+
 };
 
 
