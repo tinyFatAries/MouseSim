@@ -3,12 +3,16 @@
 Maze::Maze(SceneManager* sceneManager) : mSceneManager(sceneManager)
 {
 	createPlane();
+
+	mWallStatus = new std::vector<pair<string, float> >;
 }
 
 Maze::~Maze()
 {
 	delete mPlane;
 	mPlane = 0;
+//	delete mWallStatus;
+//	mWallStatus = 0;
 }
 
 void Maze::createPlane()
@@ -93,7 +97,6 @@ bool Maze::createFromFile(const string& filename, const string& suffix)
 				break;//all parse end
 			}
 		}
-
 		infile.close();
 	}
 	else
@@ -177,26 +180,29 @@ void Maze::buildPillar(int x, int y)
 
 void Maze::buildWall(int x, int y, bool rotate)
 {
-	static int number;
 	int deltaX, deltaY;
+	char direct;
 	if(rotate == true)
 	{
 		deltaX = 0;
 		deltaY = 9;
+		direct = 'y';
 	}
 	else
 	{
 		deltaX = 9;
 		deltaY = 0;
+		direct = 'x';
 	}
-	Entity* wall = mSceneManager->createEntity(String("wall")+StringConverter::toString(number), "wall.mesh");
+	Entity* wall = mSceneManager->createEntity( //name: wallx.y
+			String("wall") + (direct) +
+			StringConverter::toString(x) + "." + StringConverter::toString(y), "wall.mesh");
 	SceneNode* wallNode = mSceneManager->getRootSceneNode()->\
 			createChildSceneNode(Vector3(-144.0f + y * 18.0f + deltaY, -7, -144 + x * 18.0f + deltaX));
 	wallNode->attachObject(wall);
 	wallNode->setScale(0.5, 0.5, 0.5);
 	if(rotate == true)
 		wallNode->rotate(Vector3::UNIT_Y, Degree(90.0f), Node::TS_WORLD);
-	number++;
 }
 
 void Maze::destroyWall(int x, int y)
@@ -204,16 +210,58 @@ void Maze::destroyWall(int x, int y)
 
 }
 
+void Maze::injectMousePressed(const OIS::MouseEvent &arg, enum OIS::MouseButtonID id,
+		SdkTrayManager* mTrayMgr, SceneManager* mSceneMgr, Camera* mCamera)
+{
+	/*Get the Wall clicked by mouse*/
+	Ogre::Ray mouseRay = mTrayMgr->getCursorRay(mCamera);
+	Ogre::RaySceneQuery *query = mSceneMgr->createRayQuery(mouseRay);
+	query->setSortByDistance(true);
+	Ogre::RaySceneQueryResult &fowardQuery = query->execute();
+	Ogre::RaySceneQueryResult::iterator itr = fowardQuery.begin();
+	for (; itr != fowardQuery.end(); itr++)
+	{
+		if(itr->movable && itr->movable->getName() != ""
+				&& itr->movable->getName() != mCamera->getName()
+				&& itr->movable->getName() != "PlaneEntity")
+		{
+			//cout << "Fdetected " << itr->movable->getName() << endl;
+			pair<string, float> elm;
+			elm.first = itr->movable->getName();
+			elm.second = 6.0f;
+			mWallStatus->push_back(elm);
+			break;
+		}
+	}
+	mSceneMgr->destroyQuery(query);
+}
 
+void Maze::frameRenderingQueued(const FrameEvent& evt)
+{
+	if(!mWallStatus->empty())
+	{
+		SceneNode* node;
+		float delta = 6.0f * evt.timeSinceLastFrame;
+		/*move the selected walls*/
+		for(unsigned int i = 0; i < mWallStatus->size(); i++)
+		{
+			node = mSceneManager->getSceneNode(mWallStatus->operator [](i).first);
+			if(mWallStatus->operator [](i).second <= delta)
+				delta = mWallStatus->operator [](i).second;
+			node->translate(0.0f, delta, 0.0f, Node::TS_WORLD);
+			mWallStatus->operator [](i).second -= delta;
+			if(mWallStatus->operator [](i).second < 0.001)
+				mWallStatus->operator [](i).second = 0;
+		}
 
-//int main()
-//{
-//	Maze maze;
-//	//maze.createFromFile(string("tw2012"));
-//	//maze.printMaze();
-//	if(maze.createFromFile("tw2012", "txt") == false)
-//		cout << "error create maze from file" << endl;
-//	maze.printMaze();
-//
-//	return 0;
-//}
+		/*erase the wall number witch have been complished*/
+		for(unsigned int i = 0; i < mWallStatus->size(); i++)
+		{
+			if (mWallStatus->operator [](i).second == 0)
+			{
+				std::vector<pair<string, float> >::iterator itr = mWallStatus->begin() + i - 1;
+				mWallStatus->erase(itr);
+			}
+		}
+	}
+}

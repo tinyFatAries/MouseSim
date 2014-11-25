@@ -1,4 +1,5 @@
 /*
+ * 
  * Mouse.cpp
  *
  *  Created on: Nov 3, 2014
@@ -9,26 +10,24 @@
 Mouse::Mouse(SceneManager* sceneManager, Camera* camera,int x, int y) :
 mSceneManager(sceneManager),mCamera(camera),
 mMouse(0), mMouseNode(0),
-mCurDirect(North), mDirect(Vector3::UNIT_X),mMotionOver(true),
-mWallLength(18.0f), mVelocity(0.06f), mAcc(2.0f), mMaxSpeed(0.6f),
+mCurDirect(North), mDirect(Vector3::UNIT_X), mCurMotion(Idle),
+mMotionOver(true), mCalibrated(false),
+mWallLength(18.0f), mVelocity(0.0f), mAcc(2.0f), mMaxSpeed(0.6f),
 mDirection(Vector3::UNIT_Z), remainAngle(90),
-mFowardDistance(0), mLeftDistance(0), mRightDistance(0)
+mFowardDistance(0), mLeftDistance(0), mRightDistance(0),
+mWallStatus(0), mSimCom(0)
 {
+	mCurPos.x = -135;
+	mCurPos.y = -5;
+	mCurPos.z = -135;
+
+	/*init mouse and com thread*/
 	createMouse(x, y);
-//	mMotions.push(Start);
-//	for(int i = 0; i < 14; i++)
-//		mMotions.push(Foward);
-//	mMotions.push(TurnRight);
-//	for(int i = 0; i < 14; i++)
-//		mMotions.push(Foward);
-//	mMotions.push(TurnRight);
-//	for(int i = 0; i < 14; i++)
-//		mMotions.push(Foward);
-//	mMotions.push(TurnRight);
-//	for(int i = 0; i < 14; i++)
-//		mMotions.push(Foward);
-//	mMotions.push(Stop);
-//	mMotions.push(TurnAround);
+	mWallStatus = new queue<char>;
+	mSimCom = new Com(mWallStatus);
+	mSimCom->threadStart();
+
+//	mCurMotion = Start;
 }
 
 Mouse::~Mouse()
@@ -80,44 +79,181 @@ void Mouse::createMouse(int x, int y)
 	mRightRayQuery->setSortByDistance(true);
 }
 
+void Mouse::calibration()
+{
+	int deltax, deltay;
+	Vector3 deltaPos(1, 1, 1);
+
+	if(mCalibrated == false)
+	{
+		switch(mCurMotion)
+		{
+		case Start:
+		case Stop:
+		case Foward:
+			switch(mCurDirect)
+			{
+			case North:
+				deltaPos *= Vector3::UNIT_X;
+				break;
+			case East:
+				deltaPos *= Vector3::UNIT_Z;
+				break;
+			case South:
+				deltaPos *= Vector3::NEGATIVE_UNIT_X;
+				break;
+			case West:
+				deltaPos *= Vector3::NEGATIVE_UNIT_Z;
+				break;
+			}
+			if(mCurMotion == Foward)
+				deltaPos*=18;
+			else
+				deltaPos*=9;
+			mCurPos += deltaPos;
+			mMouseNode->setPosition(mCurPos);
+			break;
+		case TurnLeft:
+		case TurnRight:
+			switch(mCurDirect)
+			{
+			case North:
+				deltax = mCurMotion == TurnLeft ? 9 : -9;
+				deltay = 9;
+				break;
+			case East:
+				deltax =9;
+				deltay = mCurMotion == TurnLeft ? -9 : 9;
+				break;
+			case South:
+				deltax = mCurMotion == TurnLeft ? -9 : 9;
+				deltay = -9;
+				break;
+			case West:
+				deltax =-9;
+				deltay = mCurMotion == TurnLeft ? 9 : -9;
+				break;
+			}
+			mCurPos += Vector3(deltay, 0, deltax);
+			mMouseNode->setPosition(mCurPos);
+			break;
+		default:
+			break;
+		}
+
+		mCalibrated = true; // calibrated
+	}
+}
+
 void Mouse::frameRenderingQueued(const FrameEvent& evt)
 {
+	if(mSimCom->getSimStart())
+	{
+		Motion motion;
+		while(  (motion = static_cast<Motion>(mSimCom->getNextMotion()) ) != 0 )
+		{
+			mMotions.push(motion);
+		}
+
+		/*action motion*/
+		if(mMotionOver == true) //last motion complete
+		{
+			calibration(); // calibration position of mouse
+			if (!mMotions.empty())
+			{
+				mCurMotion = mMotions.front(); //pick up next motion
+				mMotions.pop();
+				//cout << "main  :  new motion:" << mCurMotion << endl;
+				mMotionOver = mCalibrated = false;
+			}
+			else if (mMotions.empty())
+			{
+				mWallStatus->push(lookup());
+			}
+		}
+
+		if(mMotionOver == false) //mouse is acting a motion
+		{
+			switch(mCurMotion)
+			{
+			case Start:
+				start(evt);
+				break;
+			case Foward:
+				foward(evt);
+				break;
+			case TurnLeft:
+				turn(evt, true);
+				break;
+			case TurnRight:
+				turn(evt, false);
+				break;
+			case TurnAround:
+				turnAround(evt);
+				break;
+			case Stop:
+				start(evt, false);
+				break;
+			default:
+				break;
+			}
+		}
+	}//sim start
+}
+
+char Mouse::lookup()
+{
+	Vector3 rayPos;
+	char status = 0;
 	/*detect the wall*/
-	switch(mCurDirect)
+	switch(mCurDirect) //set ray source and direct
 	{
 	case North:
-		mFowardRay.setOrigin(mMouseNode->_getDerivedPosition() + Vector3(5, 0, 0));
-		mLeftRay.setOrigin(mMouseNode->_getDerivedPosition() + Vector3(5, 0, 0));
-		mRightRay.setOrigin(mMouseNode->_getDerivedPosition() + Vector3(5, 0, 0));
+		rayPos = Vector3(3, 0, 0) + mMouseNode->_getDerivedPosition();
+		mFowardRay.setOrigin(rayPos);
+		rayPos = Vector3(3, 0, -3) + mMouseNode->_getDerivedPosition();
+		mLeftRay.setOrigin(rayPos);
+		rayPos = Vector3(3, 0, 3) + mMouseNode->_getDerivedPosition();
+		mRightRay.setOrigin(rayPos);
 		mFowardRay.setDirection(Vector3::UNIT_X);
 		mLeftRay.setDirection(Vector3::NEGATIVE_UNIT_Z);
 		mRightRay.setDirection(Vector3::UNIT_Z);
 		break;
 	case East:
-		mFowardRay.setOrigin(mMouseNode->_getDerivedPosition() + Vector3(0, 0, 5));
-		mLeftRay.setOrigin(mMouseNode->_getDerivedPosition() + Vector3(0, 0, 5));
-		mRightRay.setOrigin(mMouseNode->_getDerivedPosition() + Vector3(0, 0, 5));
+		rayPos = Vector3(0, 0, 3) + mMouseNode->_getDerivedPosition();
+		mFowardRay.setOrigin(rayPos);
+		rayPos = Vector3(3, 0, 3) + mMouseNode->_getDerivedPosition();
+		mLeftRay.setOrigin(rayPos);
+		rayPos = Vector3(-3, 0, 3) + mMouseNode->_getDerivedPosition();
+		mRightRay.setOrigin(rayPos);
 		mFowardRay.setDirection(Vector3::UNIT_Z);
 		mLeftRay.setDirection(Vector3::UNIT_X);
 		mRightRay.setDirection(Vector3::NEGATIVE_UNIT_X);
 		break;
 	case South:
-		mFowardRay.setOrigin(mMouseNode->_getDerivedPosition() + Vector3(-5, 0, 0));
-		mLeftRay.setOrigin(mMouseNode->_getDerivedPosition() + Vector3(-5, 0, 0));
-		mRightRay.setOrigin(mMouseNode->_getDerivedPosition() + Vector3(-5, 0, 0));
+		rayPos = Vector3(-3, 0, 0) + mMouseNode->_getDerivedPosition();
+		mFowardRay.setOrigin(rayPos);
+		rayPos = Vector3(-3, 0, 3) + mMouseNode->_getDerivedPosition();
+		mLeftRay.setOrigin(rayPos);
+		rayPos = Vector3(-3, 0, -3) + mMouseNode->_getDerivedPosition();
+		mRightRay.setOrigin(rayPos);
 		mFowardRay.setDirection(Vector3::NEGATIVE_UNIT_X);
 		mLeftRay.setDirection(Vector3::UNIT_Z);
 		mRightRay.setDirection(Vector3::NEGATIVE_UNIT_Z);
 		break;
 	case West:
-		mFowardRay.setOrigin(mMouseNode->_getDerivedPosition() + Vector3(0, 0, -5));
-		mLeftRay.setOrigin(mMouseNode->_getDerivedPosition() + Vector3(0, 0, -5));
-		mRightRay.setOrigin(mMouseNode->_getDerivedPosition() + Vector3(0, 0, -5));
+		rayPos = Vector3(0, 0, -3) + mMouseNode->_getDerivedPosition();
+		mFowardRay.setOrigin(rayPos);
+		rayPos = Vector3(-3, 0, -3) + mMouseNode->_getDerivedPosition();
+		mLeftRay.setOrigin(rayPos);
+		rayPos = Vector3(3, 0, -3) + mMouseNode->_getDerivedPosition();
+		mRightRay.setOrigin(rayPos);
 		mFowardRay.setDirection(Vector3::NEGATIVE_UNIT_Z);
 		mLeftRay.setDirection(Vector3::NEGATIVE_UNIT_X);
 		mRightRay.setDirection(Vector3::UNIT_X);
 		break;
 	}
+
 	mFowardRayQuery->setRay(mFowardRay);
 	Ogre::RaySceneQueryResult &fowardQuery = mFowardRayQuery->execute();
 	Ogre::RaySceneQueryResult::iterator itr = fowardQuery.begin();
@@ -127,9 +263,7 @@ void Mouse::frameRenderingQueued(const FrameEvent& evt)
 						&& itr->movable->getName() != "mouse"
 						&& itr->movable->getName() != mCamera->getName())
 		{
-			//cout << "detected walls" << endl;
-			Vector3 vec = itr->movable->getParentSceneNode()->_getDerivedPosition() - mMouseNode->_getDerivedPosition();
-			mFowardDistance = vec.normalise();
+			mFowardDistance = itr->distance;
 			break;
 		}
 	}
@@ -142,9 +276,7 @@ void Mouse::frameRenderingQueued(const FrameEvent& evt)
 						&& itr1->movable->getName() != "mouse"
 						&& itr1->movable->getName() != mCamera->getName())
 		{
-			//cout << "detected walls" << endl;
-			Vector3 vec = itr1->movable->getParentSceneNode()->_getDerivedPosition() - mMouseNode->_getDerivedPosition();
-			mLeftDistance = vec.normalise();
+			mLeftDistance = itr1->distance;
 			break;
 		}
 	}
@@ -157,48 +289,19 @@ void Mouse::frameRenderingQueued(const FrameEvent& evt)
 						&& itr3->movable->getName() != "mouse"
 						&& itr3->movable->getName() != mCamera->getName())
 		{
-			//cout << "detected walls" << endl;
-			Vector3 vec = itr3->movable->getParentSceneNode()->_getDerivedPosition() - mMouseNode->_getDerivedPosition();
-			mRightDistance = vec.normalise();
+			mRightDistance = itr3->distance;
 			break;
 		}
 	}
 
+	if(mFowardDistance < 20.0f)
+		status |= 0x1;
+	if(mLeftDistance < 10.0f)
+		status |= 0x2;
+	if(mRightDistance < 10.0f)
+		status |= 0x4;
 
-	/*action motion*/
-	if(mMotionOver == true && mMotions.empty() == false) //mouse is idle
-	{
-		mCurMotion = mMotions.front();
-		mMotions.pop();
-		mMotionOver = false;
-	}
-
-	if(mMotionOver == false) //mouse is acting a motion
-	{
-		switch(mCurMotion)
-		{
-		case Start:
-			start(evt);
-			break;
-		case Foward:
-			foward(evt);
-			break;
-		case TurnLeft:
-			turn(evt, true);
-			break;
-		case TurnRight:
-			turn(evt, false);
-			break;
-		case TurnAround:
-			turnAround(evt);
-			break;
-		case Stop:
-			start(evt, false);
-			break;
-		default:
-			break;
-		}
-	}
+	return status;
 }
 
 void Mouse::start(const FrameEvent& evt, bool start)
@@ -322,7 +425,6 @@ void Mouse::turn(const FrameEvent& evt, bool turnLeft)
 			mDirect = turnLeft ? Vector3::NEGATIVE_UNIT_X : Vector3::UNIT_X;
 			break;
 		}
-		cout<< mDirect.x << "," << mDirect.y << "," << mDirect.z << endl;
 		remainAngle = 90;
 		W1 =W2 = 0;
 	}
@@ -330,7 +432,7 @@ void Mouse::turn(const FrameEvent& evt, bool turnLeft)
 }
 
 void Mouse::turnAround(const FrameEvent& evt)
-{;
+{
 	const static float turnTime = 0.2357;
 	static float angle = 180.0f;
 	float deltaW = evt.timeSinceLastFrame / turnTime * 180;
@@ -369,3 +471,35 @@ void Mouse::turnAround(const FrameEvent& evt)
 		angle = 180.0f;
 	}
 }
+
+//		switch(status)
+//		{
+//		case 0x07:
+//			mMotions.push(Stop);
+//			mMotions.push(TurnAround);
+//			mMotions.push(Start);
+//			break;
+//		case 0x05:
+//			mMotions.push(TurnLeft);
+//			break;
+//		case 0x03:
+//			mMotions.push(TurnRight);
+//			break;
+//		case 0x06:
+//			mMotions.push(Foward);
+//			break;
+//		case 0x04:
+//			mMotions.push(Foward);
+//			break;
+//		case 0x02:
+//			mMotions.push(Foward);
+//			break;
+//		case 0x01:
+//			mMotions.push(TurnLeft);
+//			break;
+//		case 0x0:
+//			mMotions.push(Foward);
+//			break;
+//		default:
+//			break;
+//		}

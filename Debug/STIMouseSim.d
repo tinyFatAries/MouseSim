@@ -5,8 +5,8 @@ STIMouseSim.d: ../STIMouseSim.cpp ../STIMouseSim.h ../BaseApplication.h \
  /usr/include/OIS/OISInterface.h /usr/include/OIS/OISEvents.h \
  /usr/include/OIS/OISMouse.h /usr/local/include/OGRE/SdkTrays.h \
  /usr/local/include/OGRE/SdkCameraMan.h ../Mouse/Mouse.h \
- ../Mouse/../BaseApplication.h ../Maze/Maze.h \
- ../Maze/../BaseApplication.h
+ ../Mouse/../BaseApplication.h ../Mouse/../Com/Com.h \
+ ../Mouse/../Com/Thread.h ../Maze/Maze.h ../Maze/../BaseApplication.h
 
 ../STIMouseSim.h:
 
@@ -37,6 +37,10 @@ STIMouseSim.d: ../STIMouseSim.cpp ../STIMouseSim.h ../BaseApplication.h \
 ../Mouse/Mouse.h:
 
 ../Mouse/../BaseApplication.h:
+
+../Mouse/../Com/Com.h:
+
+../Mouse/../Com/Thread.h:
 
 ../Maze/Maze.h:
 

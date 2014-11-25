@@ -10,6 +10,7 @@ RM := rm -rf
 -include sources.mk
 -include Mouse/subdir.mk
 -include Maze/subdir.mk
+-include Com/subdir.mk
 -include subdir.mk
 -include objects.mk
 

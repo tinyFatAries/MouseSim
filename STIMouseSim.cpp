@@ -5,6 +5,7 @@
  *      Author: GaryTao
  */
 #include "STIMouseSim.h"
+#include <sys/time.h>
 
 STIMouseSim::STIMouseSim():
 mMicroMouse(0), mMaze(0),mMouseStart(false),mMouseStatePanel(0)
@@ -46,20 +47,32 @@ void STIMouseSim::createFrameListener(void)
 	items.push_back("left");
 	items.push_back("right");
 	mMouseStatePanel = mTrayMgr->createParamsPanel(TL_BOTTOMRIGHT, "MouseState", 200, items);
+//	mCheckBox = mTrayMgr->createCheckBox(TL_CENTER, "checkBox", "check box test", 100);
+//	mTextBox = mTrayMgr->createTextBox(TL_CENTER, "textbox", "a textbox", 400,200);
+//	mLabel = mTrayMgr->createLabel(TL_TOPLEFT, "label", "Mouse-Sim", 200);
+//	mSlider = mTrayMgr->createThickSlider(TL_CENTER, "slider", "test for slider", 200, 50, 0, 200, 1);
+//	mButton = mTrayMgr->createButton(TL_TOPRIGHT, "SimStart", "SimStart", 200);
+//	mSelectMenu = mTrayMgr->createLongSelectMenu(TL_CENTER, "selectMenu", "select", 400, 200, 10, items);
+	mTrayMgr->showBackdrop();
 }
 
 bool STIMouseSim::frameRenderingQueued(const Ogre::FrameEvent& evt)
 {
+//	timeval ts, te;
+//	gettimeofday(&ts, NULL);
 	if(mMouseStart)
 		mMicroMouse->frameRenderingQueued(evt);
 
 	mMouseStatePanel->setParamValue(0, Ogre::StringConverter::toString(mMicroMouse->mMouseNode->_getDerivedPosition().z + 144));
 	mMouseStatePanel->setParamValue(1, Ogre::StringConverter::toString(mMicroMouse->mMouseNode->_getDerivedPosition().x + 144));
-	mMouseStatePanel->setParamValue(2, Ogre::StringConverter::toString(mMicroMouse->mFowardDistance));
-	mMouseStatePanel->setParamValue(3, Ogre::StringConverter::toString(mMicroMouse->mLeftDistance));
-	mMouseStatePanel->setParamValue(4, Ogre::StringConverter::toString(mMicroMouse->mRightDistance));
+//	mMouseStatePanel->setParamValue(2, Ogre::StringConverter::toString(mMicroMouse->mFowardDistance));
+//	mMouseStatePanel->setParamValue(3, Ogre::StringConverter::toString(mMicroMouse->mLeftDistance));
+//	mMouseStatePanel->setParamValue(4, Ogre::StringConverter::toString(mMicroMouse->mRightDistance));
 
-	return BaseApplication::frameRenderingQueued(evt);
+	int ret = BaseApplication::frameRenderingQueued(evt);
+//	gettimeofday(&te, NULL);
+//	cout << te.tv_sec*1000000 + te.tv_usec - (ts.tv_sec*1000000 + ts.tv_usec) << "us" << endl;
+	return ret;
 }
 
 // OIS::KeyListener
@@ -67,17 +80,17 @@ bool STIMouseSim::keyPressed( const OIS::KeyEvent &arg )
 {
 	if(arg.key == OIS::KC_SPACE)
 	{
-		mMouseStart = true;
+		mMouseStart = !mMouseStart;
 	}
 	else if(arg.key == OIS::KC_Q)
 	{
-		mMicroMouse->mMotions.push(Mouse::Foward);
 	}
 	else if(arg.key == OIS::KC_E)
 	{
 	}
 	return BaseApplication::keyPressed(arg);
 }
+
 bool STIMouseSim::keyReleased( const OIS::KeyEvent &arg )
 {
 	return BaseApplication::keyReleased(arg);
@@ -88,12 +101,27 @@ bool STIMouseSim::mouseMoved( const OIS::MouseEvent &arg )
 {
 	return BaseApplication::mouseMoved(arg);
 }
+
 bool STIMouseSim::mousePressed( const OIS::MouseEvent &arg, OIS::MouseButtonID id )
 {
+	if (mTrayMgr->injectMouseDown(arg, id)) return true;
+
+	if(id == OIS::MB_Right) mTrayMgr->hideCursor(); //free look mode
+
+	mMaze->injectMousePressed(arg, id, mTrayMgr, mSceneMgr, mCamera);
+
 	return BaseApplication::mousePressed(arg, id);
 }
+
+void STIMouseSim::buttonHit(Button *btn)
+{
+
+}
+
 bool STIMouseSim::mouseReleased( const OIS::MouseEvent &arg, OIS::MouseButtonID id )
 {
+	if (mTrayMgr->injectMouseUp(arg, id)) return true;
+	mTrayMgr->showCursor();
 	return BaseApplication::mouseReleased(arg, id);
 }
 

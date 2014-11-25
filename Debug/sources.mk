@@ -26,4 +26,5 @@ SUBDIRS := \
 . \
 Mouse \
 Maze \
+Com \
 

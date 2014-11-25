@@ -5,7 +5,8 @@ Mouse/Mouse.d: ../Mouse/Mouse.cpp ../Mouse/Mouse.h \
  /usr/include/OIS/OISObject.h /usr/include/OIS/OISInterface.h \
  /usr/include/OIS/OISEvents.h /usr/include/OIS/OISMouse.h \
  /usr/local/include/OGRE/SdkTrays.h \
- /usr/local/include/OGRE/SdkCameraMan.h
+ /usr/local/include/OGRE/SdkCameraMan.h ../Mouse/../Com/Com.h \
+ ../Mouse/../Com/Thread.h
 
 ../Mouse/Mouse.h:
 
@@ -32,3 +33,7 @@ Mouse/Mouse.d: ../Mouse/Mouse.cpp ../Mouse/Mouse.h \
 /usr/local/include/OGRE/SdkTrays.h:
 
 /usr/local/include/OGRE/SdkCameraMan.h:
+
+../Mouse/../Com/Com.h:
+
+../Mouse/../Com/Thread.h:

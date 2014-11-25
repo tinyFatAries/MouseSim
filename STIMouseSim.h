@@ -33,11 +33,20 @@ protected:
 	bool mouseMoved( const OIS::MouseEvent &arg );
 	bool mousePressed( const OIS::MouseEvent &arg, OIS::MouseButtonID id );
 	bool mouseReleased( const OIS::MouseEvent &arg, OIS::MouseButtonID id );
+	// OgreBites::Listener
+	void buttonHit(Button* btn );
 private:
 	Mouse* mMicroMouse;
 	Maze* mMaze;
 	bool mMouseStart;
+	/*UI members*/
 	OgreBites::ParamsPanel* mMouseStatePanel;
+//	OgreBites::CheckBox* mCheckBox;
+//	OgreBites::TextBox* mTextBox;
+//	OgreBites::SelectMenu* mSelectMenu;
+//	OgreBites::Label* mLabel;
+//	OgreBites::Slider* mSlider;
+//	OgreBites::Button* mButton;
 };
 
 

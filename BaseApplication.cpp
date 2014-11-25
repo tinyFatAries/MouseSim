@@ -380,7 +380,6 @@ bool BaseApplication::mouseMoved( const OIS::MouseEvent &arg )
 
 bool BaseApplication::mousePressed( const OIS::MouseEvent &arg, OIS::MouseButtonID id )
 {
-    if (mTrayMgr->injectMouseDown(arg, id)) return true;
     if(id == OIS::MB_Right) mCameraManEnable = true;
     if(mCameraManEnable)
     mCameraMan->injectMouseDown(arg, id);
@@ -389,7 +388,6 @@ bool BaseApplication::mousePressed( const OIS::MouseEvent &arg, OIS::MouseButton
 
 bool BaseApplication::mouseReleased( const OIS::MouseEvent &arg, OIS::MouseButtonID id )
 {
-    if (mTrayMgr->injectMouseUp(arg, id)) return true;
     if(id == OIS::MB_Right) mCameraManEnable = false;
     if(mCameraManEnable)
     mCameraMan->injectMouseUp(arg, id);
